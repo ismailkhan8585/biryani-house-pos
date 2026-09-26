@@ -41,7 +41,7 @@ const NAV = [
 export default function POSClient({ branchId, branchName, role }: POSClientProps) {
   const fetchMenu   = useMenuStore((s) => s.fetchMenu);
   const setBranch   = useBranchStore((s) => s.setBranch);
-  const currentShift = useShiftStore((s) => s.currentShift);
+  const currentShift  = useShiftStore((s) => s.currentShift);
   const { setOnline } = useConnectionStore();
   const pathname = usePathname();
 
@@ -59,7 +59,9 @@ export default function POSClient({ branchId, branchName, role }: POSClientProps
     setBranch({ id: branchId, name: branchName, color: "#F97316", role });
     fetchMenu();
 
-    if (!currentShift) setShowShiftModal(true);
+    // Read directly from store (bypasses React closure) so we get the
+    // already-hydrated value from localStorage, not the SSR default (null).
+    if (!useShiftStore.getState().currentShift) setShowShiftModal(true);
 
     const handleOnline  = () => setOnline(true);
     const handleOffline = () => setOnline(false);
