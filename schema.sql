@@ -1,301 +1,260 @@
--- ============================================================
--- BIRYANI HOUSE POS — Supabase Database Schema
--- ============================================================
--- Run this entire file in Supabase SQL Editor
--- Project: https://supabase.com > SQL Editor > New Query > Paste > Run
--- ============================================================
+-- ==============================================================================
+-- BIRYANI HOUSE RESTAURANT POS SYSTEM — SUPABASE POSTGRESQL SCHEMA
+-- ==============================================================================
+-- 3 Branches · Master Admin · Realtime KDS · Multi-Channel POS · Offline Sync
+-- Run this complete SQL script in your Supabase SQL Editor (supabase.com)
+-- ==============================================================================
 
--- BRANCHES TABLE
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- ==============================================================================
+-- 1. BRANCHES TABLE
+-- ==============================================================================
 CREATE TABLE IF NOT EXISTS branches (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  name TEXT NOT NULL,
-  name_ur TEXT,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(100) NOT NULL,
+  name_ur VARCHAR(100),
   address TEXT,
-  phone TEXT,
-  pin TEXT NOT NULL DEFAULT '1234',
-  color TEXT DEFAULT '#F97316',
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  phone VARCHAR(50),
+  pin VARCHAR(10) NOT NULL DEFAULT '1111',
+  color VARCHAR(20) NOT NULL DEFAULT '#F97316',
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Insert 3 biryani branches
-INSERT INTO branches (name, name_ur, address, phone, pin, color) VALUES
-  ('Branch 1 — Main',  'شاخ 1 — مین',  'Main Branch Address,  City', '0300-0000000', '1111', '#F97316'),
-  ('Branch 2 — City',  'شاخ 2 — شہر',  'City Branch Address,  City', '0300-0000000', '2222', '#EF4444'),
-  ('Branch 3 — North', 'شاخ 3 — نارتھ', 'North Branch Address, City', '0300-0000000', '3333', '#8B5CF6');
-
--- CATEGORIES TABLE
+-- ==============================================================================
+-- 2. CATEGORIES TABLE
+-- ==============================================================================
 CREATE TABLE IF NOT EXISTS categories (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  name_en TEXT NOT NULL,
-  name_ur TEXT,
-  icon TEXT DEFAULT '🍽️',
-  sort_order INTEGER DEFAULT 0,
-  is_active BOOLEAN DEFAULT true
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name_en VARCHAR(100) NOT NULL,
+  name_ur VARCHAR(100),
+  icon VARCHAR(50) NOT NULL DEFAULT '🍛',
+  sort_order INT NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-INSERT INTO categories (name_en, name_ur, icon, sort_order) VALUES
-  ('Biryani',       'بریانی',   '🍛', 1),
-  ('Karahi',        'کڑاہی',    '🥘', 2),
-  ('Rice Dishes',   'چاول',    '🍚', 3),
-  ('Bread',         'روٹی',    '🫓', 4),
-  ('Drinks',        'مشروبات', '🥤', 5),
-  ('Raita & Salad', 'رائتہ',   '🥗', 6),
-  ('Extras',        'اضافی',   '➕', 7);
-
--- MENU ITEMS TABLE
+-- ==============================================================================
+-- 3. MENU ITEMS TABLE
+-- ==============================================================================
 CREATE TABLE IF NOT EXISTS menu_items (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  name_en TEXT NOT NULL,
-  name_ur TEXT,
-  category_id UUID REFERENCES categories(id),
-  price DECIMAL(10,2) NOT NULL,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name_en VARCHAR(150) NOT NULL,
+  name_ur VARCHAR(150),
+  category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+  price NUMERIC(10, 2) NOT NULL DEFAULT 0,
   description TEXT,
   image_url TEXT,
-  emoji TEXT DEFAULT '🍛',
-  is_available BOOLEAN DEFAULT true,
-  is_featured BOOLEAN DEFAULT false,
-  sort_order INTEGER DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  emoji VARCHAR(20) NOT NULL DEFAULT '🍛',
+  is_available BOOLEAN NOT NULL DEFAULT true,
+  is_featured BOOLEAN NOT NULL DEFAULT false,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Biryani items
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji, is_featured)
-SELECT 'Chicken Biryani (Full)', 'چکن بریانی (فل)', id, 850, '🍛', true FROM categories WHERE name_en = 'Biryani';
-
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji)
-SELECT 'Chicken Biryani (Half)', 'چکن بریانی (ہاف)', id, 450, '🍛' FROM categories WHERE name_en = 'Biryani';
-
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji, is_featured)
-SELECT 'Mutton Biryani (Full)', 'مٹن بریانی (فل)', id, 1200, '🍛', true FROM categories WHERE name_en = 'Biryani';
-
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji)
-SELECT 'Mutton Biryani (Half)', 'مٹن بریانی (ہاف)', id, 650, '🍛' FROM categories WHERE name_en = 'Biryani';
-
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji)
-SELECT 'Beef Biryani (Full)', 'بیف بریانی (فل)', id, 950, '🍛' FROM categories WHERE name_en = 'Biryani';
-
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji)
-SELECT 'Special Biryani Platter', 'سپیشل بریانی پلیٹر', id, 1500, '🍛' FROM categories WHERE name_en = 'Biryani';
-
--- Karahi items
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji, is_featured)
-SELECT 'Chicken Karahi (Full)', 'چکن کڑاہی (فل)', id, 1400, '🥘', true FROM categories WHERE name_en = 'Karahi';
-
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji)
-SELECT 'Chicken Karahi (Half)', 'چکن کڑاہی (ہاف)', id, 750, '🥘' FROM categories WHERE name_en = 'Karahi';
-
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji)
-SELECT 'Mutton Karahi (Full)', 'مٹن کڑاہی (فل)', id, 2000, '🥘' FROM categories WHERE name_en = 'Karahi';
-
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji)
-SELECT 'White Karahi', 'سفید کڑاہی', id, 1500, '🥘' FROM categories WHERE name_en = 'Karahi';
-
--- Rice / Bread / Drinks / Sides
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji)
-SELECT 'Plain Rice', 'سادہ چاول', id, 150, '🍚' FROM categories WHERE name_en = 'Rice Dishes';
-
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji)
-SELECT 'Roghni Naan', 'روغنی نان', id, 50, '🫓' FROM categories WHERE name_en = 'Bread';
-
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji)
-SELECT 'Tandoori Roti', 'تندوری روٹی', id, 30, '🫓' FROM categories WHERE name_en = 'Bread';
-
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji)
-SELECT 'Soft Drink (Bottle)', 'سافٹ ڈرنک', id, 120, '🥤' FROM categories WHERE name_en = 'Drinks';
-
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji)
-SELECT 'Lassi (Glass)', 'لسی (گلاس)', id, 100, '🥤' FROM categories WHERE name_en = 'Drinks';
-
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji)
-SELECT 'Water (Bottle)', 'پانی (بوتل)', id, 60, '🥤' FROM categories WHERE name_en = 'Drinks';
-
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji)
-SELECT 'Raita', 'رائتہ', id, 80, '🥗' FROM categories WHERE name_en = 'Raita & Salad';
-
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji)
-SELECT 'Kachumber Salad', 'کچمبر سلاد', id, 80, '🥗' FROM categories WHERE name_en = 'Raita & Salad';
-
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji)
-SELECT 'Extra Gravy', 'اضافی سالن', id, 50, '➕' FROM categories WHERE name_en = 'Extras';
-
-INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji)
-SELECT 'Extra Naan', 'اضافی نان', id, 40, '➕' FROM categories WHERE name_en = 'Extras';
-
--- RESTAURANT TABLES (dine-in seating)
+-- ==============================================================================
+-- 4. RESTAURANT TABLES
+-- ==============================================================================
 CREATE TABLE IF NOT EXISTS restaurant_tables (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  branch_id UUID REFERENCES branches(id),
-  table_number INTEGER NOT NULL,
-  table_name TEXT,
-  capacity INTEGER DEFAULT 4,
-  status TEXT DEFAULT 'AVAILABLE',
-  -- AVAILABLE | OCCUPIED | RESERVED | CLEANING
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  branch_id UUID NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
+  table_number INT NOT NULL,
+  table_name VARCHAR(50),
+  capacity INT NOT NULL DEFAULT 4,
+  status VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE', -- 'AVAILABLE', 'OCCUPIED', 'RESERVED', 'CLEANING'
   current_order_id UUID,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(branch_id, table_number)
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT unique_branch_table UNIQUE (branch_id, table_number)
 );
 
--- Insert 10 tables for each branch
-INSERT INTO restaurant_tables (branch_id, table_number, table_name, capacity)
-SELECT
-  b.id,
-  t.num,
-  'Table ' || t.num,
-  CASE WHEN t.num <= 5 THEN 4 ELSE 6 END
-FROM branches b
-CROSS JOIN generate_series(1, 10) AS t(num);
-
--- ORDERS TABLE
-CREATE TABLE IF NOT EXISTS orders (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  order_number TEXT UNIQUE NOT NULL,
-  branch_id UUID REFERENCES branches(id) NOT NULL,
-  order_type TEXT NOT NULL,
-  -- DINE_IN | TAKEAWAY | DELIVERY
-  table_id UUID REFERENCES restaurant_tables(id),
-  table_number INTEGER,
-  customer_name TEXT,
-  customer_phone TEXT,
-  delivery_address TEXT,
-  subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
-  discount DECIMAL(10,2) DEFAULT 0,
-  discount_type TEXT DEFAULT 'AMOUNT',
-  -- AMOUNT | PERCENT
-  tax DECIMAL(10,2) DEFAULT 0,
-  total_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
-  payment_method TEXT,
-  -- CASH | JAZZCASH | EASYPAISA | SPLIT
-  payment_status TEXT DEFAULT 'UNPAID',
-  -- UNPAID | PAID | PARTIAL | REFUNDED
-  order_status TEXT DEFAULT 'PENDING',
-  -- PENDING | PREPARING | READY | SERVED | DELIVERED | COMPLETED | CANCELLED
-  notes TEXT,
-  kot_printed BOOLEAN DEFAULT false,
-  receipt_printed BOOLEAN DEFAULT false,
-  offline_order_id TEXT UNIQUE,
-  sale_source TEXT DEFAULT 'ONLINE',
-  -- ONLINE | OFFLINE
-  shift_id UUID,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  completed_at TIMESTAMPTZ
-);
-
--- ORDER ITEMS TABLE
-CREATE TABLE IF NOT EXISTS order_items (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
-  menu_item_id UUID REFERENCES menu_items(id),
-  item_name TEXT NOT NULL,
-  item_name_ur TEXT,
-  quantity INTEGER NOT NULL DEFAULT 1,
-  unit_price DECIMAL(10,2) NOT NULL,
-  total_price DECIMAL(10,2) NOT NULL,
-  notes TEXT,
-  status TEXT DEFAULT 'PENDING'
-  -- PENDING | PREPARING | READY | SERVED
-);
-
--- SHIFTS TABLE
+-- ==============================================================================
+-- 5. SHIFTS TABLE
+-- ==============================================================================
 CREATE TABLE IF NOT EXISTS shifts (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  branch_id UUID REFERENCES branches(id),
-  shift_number TEXT UNIQUE NOT NULL,
-  operator_name TEXT DEFAULT 'Cashier',
-  opening_cash DECIMAL(10,2) DEFAULT 0,
-  closing_cash DECIMAL(10,2),
-  expected_cash DECIMAL(10,2),
-  cash_difference DECIMAL(10,2),
-  total_sales DECIMAL(12,2) DEFAULT 0,
-  total_orders INTEGER DEFAULT 0,
-  cash_sales DECIMAL(12,2) DEFAULT 0,
-  digital_sales DECIMAL(12,2) DEFAULT 0,
-  status TEXT DEFAULT 'OPEN',
-  -- OPEN | CLOSED
-  opened_at TIMESTAMPTZ DEFAULT NOW(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  branch_id UUID NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
+  shift_number VARCHAR(50) NOT NULL,
+  operator_name VARCHAR(100) NOT NULL,
+  opening_cash NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  closing_cash NUMERIC(10, 2),
+  expected_cash NUMERIC(10, 2),
+  cash_difference NUMERIC(10, 2),
+  total_sales NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  total_orders INT NOT NULL DEFAULT 0,
+  cash_sales NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  digital_sales NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  status VARCHAR(20) NOT NULL DEFAULT 'OPEN', -- 'OPEN', 'CLOSED'
+  opened_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   closed_at TIMESTAMPTZ
 );
 
--- SETTINGS TABLE
-CREATE TABLE IF NOT EXISTS settings (
-  key TEXT PRIMARY KEY,
-  value TEXT NOT NULL,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+-- ==============================================================================
+-- 6. ORDERS TABLE
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_number VARCHAR(50) NOT NULL,
+  branch_id UUID NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
+  order_type VARCHAR(20) NOT NULL DEFAULT 'DINE_IN', -- 'DINE_IN', 'TAKEAWAY', 'DELIVERY'
+  table_id UUID REFERENCES restaurant_tables(id) ON DELETE SET NULL,
+  table_number INT,
+  customer_name VARCHAR(100),
+  customer_phone VARCHAR(50),
+  delivery_address TEXT,
+  subtotal NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  discount NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  discount_type VARCHAR(20) NOT NULL DEFAULT 'AMOUNT', -- 'AMOUNT', 'PERCENT'
+  tax NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  total_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  payment_method VARCHAR(20), -- 'CASH', 'JAZZCASH', 'EASYPAISA', 'SPLIT'
+  payment_status VARCHAR(20) NOT NULL DEFAULT 'UNPAID', -- 'UNPAID', 'PAID', 'PARTIAL', 'REFUNDED'
+  order_status VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'PREPARING', 'READY', 'SERVED', 'DELIVERED', 'COMPLETED', 'CANCELLED'
+  notes TEXT,
+  kot_printed BOOLEAN NOT NULL DEFAULT false,
+  receipt_printed BOOLEAN NOT NULL DEFAULT false,
+  offline_order_id VARCHAR(100),
+  sale_source VARCHAR(20) NOT NULL DEFAULT 'ONLINE', -- 'ONLINE', 'OFFLINE'
+  shift_id UUID REFERENCES shifts(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at TIMESTAMPTZ
 );
 
-INSERT INTO settings (key, value) VALUES
-  ('restaurant_name',        'Biryani House'),
-  ('restaurant_name_ur',     'بریانی ہاؤس'),
-  ('owner_name',             'Owner Name'),
-  ('phone',                  '0300-0000000'),
-  ('address',                'Main Address, City'),
-  ('receipt_footer',         'Shukriya! شکریہ — Thank you for dining with us.'),
-  ('tax_enabled',            'false'),
-  ('tax_rate',               '0'),
-  ('currency',               'Rs.'),
-  ('jazzcash_number',        '0300-0000000'),
-  ('easypaisa_number',       '0300-0000000'),
-  ('kot_enabled',            'true'),
-  ('table_count_per_branch', '10')
-ON CONFLICT (key) DO NOTHING;
+-- ==============================================================================
+-- 7. ORDER ITEMS TABLE
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS order_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  menu_item_id UUID REFERENCES menu_items(id) ON DELETE SET NULL,
+  item_name VARCHAR(150) NOT NULL,
+  item_name_ur VARCHAR(150),
+  quantity INT NOT NULL DEFAULT 1,
+  unit_price NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  total_price NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  notes TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'PENDING' -- 'PENDING', 'PREPARING', 'READY', 'SERVED'
+);
 
--- ============================================================
--- INDEXES
--- ============================================================
-CREATE INDEX IF NOT EXISTS idx_orders_branch  ON orders(branch_id);
-CREATE INDEX IF NOT EXISTS idx_orders_status  ON orders(order_status);
-CREATE INDEX IF NOT EXISTS idx_orders_date    ON orders(created_at);
-CREATE INDEX IF NOT EXISTS idx_orders_type    ON orders(order_type);
-CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
-CREATE INDEX IF NOT EXISTS idx_tables_branch  ON restaurant_tables(branch_id);
-CREATE INDEX IF NOT EXISTS idx_tables_status  ON restaurant_tables(status);
-CREATE INDEX IF NOT EXISTS idx_shifts_branch  ON shifts(branch_id);
+-- ==============================================================================
+-- 8. SETTINGS TABLE
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS settings (
+  key VARCHAR(100) PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
--- ============================================================
--- COMPLETE ORDER FUNCTION
--- ============================================================
-CREATE OR REPLACE FUNCTION complete_order(p_order_id UUID)
-RETURNS void AS $$
+-- ==============================================================================
+-- 9. PERFORMANCE INDEXES
+-- ==============================================================================
+CREATE INDEX IF NOT EXISTS idx_orders_branch_created ON orders (branch_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (order_status);
+CREATE INDEX IF NOT EXISTS idx_orders_offline ON orders (offline_order_id);
+CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items (order_id);
+CREATE INDEX IF NOT EXISTS idx_tables_branch ON restaurant_tables (branch_id, table_number);
+CREATE INDEX IF NOT EXISTS idx_menu_items_cat ON menu_items (category_id, is_available);
+CREATE INDEX IF NOT EXISTS idx_shifts_branch ON shifts (branch_id, status);
+
+-- ==============================================================================
+-- 10. REALTIME CONFIGURATION
+-- ==============================================================================
+-- Add tables to supabase_realtime publication for live KDS & table updates
+ALTER PUBLICATION supabase_realtime ADD TABLE orders;
+ALTER PUBLICATION supabase_realtime ADD TABLE order_items;
+ALTER PUBLICATION supabase_realtime ADD TABLE restaurant_tables;
+
+-- ==============================================================================
+-- 11. ROW LEVEL SECURITY (RLS) POLICIES
+-- ==============================================================================
+ALTER TABLE branches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE menu_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE restaurant_tables ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shifts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+
+-- Allow public read/write via anon and authenticated keys for POS operation
+CREATE POLICY "Public full access on branches" ON branches FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public full access on categories" ON categories FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public full access on menu_items" ON menu_items FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public full access on restaurant_tables" ON restaurant_tables FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public full access on shifts" ON shifts FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public full access on orders" ON orders FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public full access on order_items" ON order_items FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public full access on settings" ON settings FOR ALL USING (true) WITH CHECK (true);
+
+-- ==============================================================================
+-- 12. SEED INITIAL DATA
+-- ==============================================================================
+
+-- 3 Branches
+INSERT INTO branches (id, name, name_ur, address, phone, pin, color) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'Branch 1 — Main', 'برانچ ۱ — مین', 'Shop #1-3, Food Street', '0300-1111111', '1111', '#F97316'),
+  ('22222222-2222-2222-2222-222222222222', 'Branch 2 — City', 'برانچ ۲ — سٹی', 'Commercial Market, Block B', '0300-2222222', '2222', '#EF4444'),
+  ('33333333-3333-3333-3333-333333333333', 'Branch 3 — North', 'برانچ ۳ — نارتھ', 'Sector F-7, North Avenue', '0300-3333333', '3333', '#8B5CF6')
+ON CONFLICT (id) DO NOTHING;
+
+-- 10 Tables per Branch (30 Tables total)
+DO $$
+DECLARE
+  b_id UUID;
+  t_num INT;
 BEGIN
-  UPDATE orders
-  SET order_status   = 'COMPLETED',
-      payment_status = 'PAID',
-      completed_at   = NOW(),
-      updated_at     = NOW()
-  WHERE id = p_order_id;
-END;
-$$ LANGUAGE plpgsql;
+  FOR b_id IN SELECT id FROM branches LOOP
+    FOR t_num IN 1..10 LOOP
+      INSERT INTO restaurant_tables (branch_id, table_number, table_name, capacity, status)
+      VALUES (b_id, t_num, 'Table ' || t_num, CASE WHEN t_num <= 2 THEN 2 WHEN t_num <= 8 THEN 4 ELSE 6 END, 'AVAILABLE')
+      ON CONFLICT (branch_id, table_number) DO NOTHING;
+    END LOOP;
+  END LOOP;
+END $$;
 
--- ============================================================
--- ROW LEVEL SECURITY (RLS)
--- Allow anon key to read/write — adjust per your security needs
--- ============================================================
-ALTER TABLE branches           ENABLE ROW LEVEL SECURITY;
-ALTER TABLE categories         ENABLE ROW LEVEL SECURITY;
-ALTER TABLE menu_items         ENABLE ROW LEVEL SECURITY;
-ALTER TABLE restaurant_tables  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE orders             ENABLE ROW LEVEL SECURITY;
-ALTER TABLE order_items        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE shifts             ENABLE ROW LEVEL SECURITY;
-ALTER TABLE settings           ENABLE ROW LEVEL SECURITY;
+-- Categories
+INSERT INTO categories (id, name_en, name_ur, icon, sort_order) VALUES
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Biryani & Pulao', 'بریانی اور پلاؤ', '🍛', 1),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'Karahi & Handi', 'کڑاہی اور ہانڈی', '🍗', 2),
+  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'BBQ & Kebabs', 'بار بی کیو اور کباب', '🍢', 3),
+  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'Naan & Roti', 'نان اور روٹی', '🥖', 4),
+  ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'Sides & Raita', 'رائتہ اور سلاد', '🥗', 5),
+  ('ffffffff-ffff-ffff-ffff-ffffffffffff', 'Beverages & Desserts', 'مشروبات اور میٹھا', '🥤', 6)
+ON CONFLICT (id) DO NOTHING;
 
--- Allow all for anon (POS app uses anon key with JWT auth handled server-side)
-CREATE POLICY "Allow all branches"    ON branches           FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all categories"  ON categories         FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all menu_items"  ON menu_items         FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all tables"      ON restaurant_tables  FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all orders"      ON orders             FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all order_items" ON order_items        FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all shifts"      ON shifts             FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all settings"    ON settings           FOR ALL USING (true) WITH CHECK (true);
+-- Authentic Pakistani Menu Items
+INSERT INTO menu_items (name_en, name_ur, category_id, price, emoji, is_available, is_featured, sort_order, description) VALUES
+  ('Chicken Biryani Single', 'چکن بریانی سنگل', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 380.00, '🍗', true, true, 1, 'Fragrant basmati rice cooked with succulent chicken piece, potato and secret spices'),
+  ('Chicken Biryani Double', 'چکن بریانی ڈبل', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 650.00, '🍗', true, true, 2, 'Double chicken piece with extra spiced aromatic basmati rice'),
+  ('Beef Biryani Single', 'بیف بریانی سنگل', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 480.00, '🥩', true, true, 3, 'Tender slow-cooked beef with spiced rice and potatoes'),
+  ('Beef Biryani Double', 'بیف بریانی ڈبل', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 850.00, '🥩', true, false, 4, 'Large portion of Karachi-style beef biryani'),
+  ('Special Mutton Biryani', 'اسپیشل مٹن بریانی', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 1150.00, '🍖', true, true, 5, 'Prime cut mutton simmered in saffron-infused long grain basmati rice'),
+  ('Chicken Degi Pulao', 'چکن دیگی پلاؤ', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 420.00, '🍚', true, false, 6, 'Mildly spiced traditional yakhni pulao with tender chicken'),
+  ('Chicken Karahi (Half)', 'چکن کڑاہی (نصف)', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 950.00, '🥘', true, true, 7, 'Freshly wok-fried chicken in fresh tomatoes, ginger and green chilies'),
+  ('Chicken Karahi (Full)', 'چکن کڑاہی (مکمل)', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 1750.00, '🥘', true, false, 8, 'Full 1kg chicken karahi with rich butter and ginger garnishing'),
+  ('Chicken Tikka Boti', 'چکن تکہ بوٹی', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 320.00, '🍢', true, true, 9, 'Boneless chicken cubes grilled over hot charcoal coals'),
+  ('Beef Seekh Kebab (4 Pcs)', 'بیف سیخ کباب (۴ عدد)', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 450.00, '🍢', true, true, 10, 'Minced spiced beef skewered and char-grilled to perfection'),
+  ('Roghani Naan', 'روغنی نان', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 70.00, '🥖', true, false, 11, 'Soft tandoori bread topped with sesame seeds and butter'),
+  ('Garlic Butter Naan', 'گارلک بٹر نان', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 90.00, '🥖', true, false, 12, 'Tandoori naan brushed with garlic butter and fresh coriander'),
+  ('Zeera Raita', 'زیرہ رائتہ', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 60.00, '🥣', true, false, 13, 'Chilled fresh yogurt blended with roasted cumin seeds'),
+  ('Fresh Kachumber Salad', 'کچومر سلاد', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 70.00, '🥗', true, false, 14, 'Diced cucumber, onion, tomato with lemon dressing'),
+  ('Soft Drink (500ml)', 'کولڈ ڈرنک (۵۰۰ ملی لیٹر)', 'ffffffff-ffff-ffff-ffff-ffffffffffff', 120.00, '🥤', true, false, 15, 'Chilled Pepsi, 7Up, or Mirinda'),
+  ('Shahi Kheer Cup', 'شاہی کھیر کپ', 'ffffffff-ffff-ffff-ffff-ffffffffffff', 150.00, '🍮', true, true, 16, 'Slow-simmered rice pudding with saffron, almonds, and pistachios')
+ON CONFLICT DO NOTHING;
 
--- ============================================================
--- REALTIME (enable for kitchen display live updates)
--- Run in Supabase Dashboard > Database > Replication
--- or uncomment below:
--- ============================================================
--- ALTER PUBLICATION supabase_realtime ADD TABLE orders;
--- ALTER PUBLICATION supabase_realtime ADD TABLE order_items;
--- ALTER PUBLICATION supabase_realtime ADD TABLE restaurant_tables;
+-- Initial Settings
+INSERT INTO settings (key, value) VALUES
+  ('restaurant_name', 'Biryani House'),
+  ('restaurant_phone', '0300-1234567'),
+  ('restaurant_address', 'Main Food Street, Karachi / Lahore'),
+  ('receipt_footer', 'Thank you for dining at Biryani House! For catering call 0300-1234567'),
+  ('jazzcash_number', '0300-1234567'),
+  ('jazzcash_title', 'Biryani House Official'),
+  ('easypaisa_number', '0300-7654321'),
+  ('easypaisa_title', 'Biryani House Official'),
+  ('tax_enabled', 'false'),
+  ('tax_rate', '0')
+ON CONFLICT (key) DO NOTHING;
