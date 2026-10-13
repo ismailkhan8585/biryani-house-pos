@@ -16,10 +16,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // Server-side Supabase client (uses service role key)
 export function createServerClient() {
-  const serviceRoleKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    "placeholder-service-key";
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceRoleKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY is required");
   return createClient(supabaseUrl, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
@@ -35,7 +33,7 @@ export interface Branch {
   name_ur: string | null;
   address: string | null;
   phone: string | null;
-  pin: string;
+  receipt_footer?: string | null;
   color: string;
   is_active: boolean;
   created_at: string;
@@ -80,6 +78,12 @@ export interface RestaurantTable {
 }
 
 export interface Order {
+  staff_id?: string;
+  staff_name?: string;
+  payment_staff_name?: string;
+  cash_amount?: number | null;
+  cancellation_reason?: string;
+  receipt_branch?: Branch;
   id: string;
   order_number: string;
   branch_id: string;
@@ -96,9 +100,16 @@ export interface Order {
   total_amount: number;
   payment_method: "CASH" | "JAZZCASH" | "EASYPAISA" | "SPLIT" | null;
   payment_status: "UNPAID" | "PAID" | "PARTIAL" | "REFUNDED";
-  order_status: "PENDING" | "PREPARING" | "READY" | "SERVED" | "DELIVERED" | "COMPLETED" | "CANCELLED";
+  // Legacy preparation values remain readable for existing orders and offline sync.
+  order_status:
+    | "PENDING"
+    | "PREPARING"
+    | "READY"
+    | "SERVED"
+    | "DELIVERED"
+    | "COMPLETED"
+    | "CANCELLED";
   notes: string | null;
-  kot_printed: boolean;
   receipt_printed: boolean;
   offline_order_id: string | null;
   sale_source: "ONLINE" | "OFFLINE";
@@ -121,6 +132,7 @@ export interface OrderItem {
   unit_price: number;
   total_price: number;
   notes: string | null;
+  // Retained for compatibility with stored line items.
   status: "PENDING" | "PREPARING" | "READY" | "SERVED";
 }
 

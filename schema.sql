@@ -1,7 +1,7 @@
 -- ==============================================================================
 -- BIRYANI HOUSE RESTAURANT POS SYSTEM — SUPABASE POSTGRESQL SCHEMA
 -- ==============================================================================
--- 3 Branches · Master Admin · Realtime KDS · Multi-Channel POS · Offline Sync
+-- 3 Branches · Master Admin · Multi-Channel POS · Offline Sync
 -- Run this complete SQL script in your Supabase SQL Editor (supabase.com)
 -- ==============================================================================
 
@@ -113,6 +113,7 @@ CREATE TABLE IF NOT EXISTS orders (
   payment_status VARCHAR(20) NOT NULL DEFAULT 'UNPAID', -- 'UNPAID', 'PAID', 'PARTIAL', 'REFUNDED'
   order_status VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'PREPARING', 'READY', 'SERVED', 'DELIVERED', 'COMPLETED', 'CANCELLED'
   notes TEXT,
+  -- Legacy field retained to preserve existing data and database compatibility.
   kot_printed BOOLEAN NOT NULL DEFAULT false,
   receipt_printed BOOLEAN NOT NULL DEFAULT false,
   offline_order_id VARCHAR(100),
@@ -162,7 +163,7 @@ CREATE INDEX IF NOT EXISTS idx_shifts_branch ON shifts (branch_id, status);
 -- ==============================================================================
 -- 10. REALTIME CONFIGURATION
 -- ==============================================================================
--- Add tables to supabase_realtime publication for live KDS & table updates
+-- Add tables to supabase_realtime publication for live order & table updates
 ALTER PUBLICATION supabase_realtime ADD TABLE orders;
 ALTER PUBLICATION supabase_realtime ADD TABLE order_items;
 ALTER PUBLICATION supabase_realtime ADD TABLE restaurant_tables;
@@ -179,15 +180,8 @@ ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 
--- Allow public read/write via anon and authenticated keys for POS operation
-CREATE POLICY "Public full access on branches" ON branches FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public full access on categories" ON categories FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public full access on menu_items" ON menu_items FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public full access on restaurant_tables" ON restaurant_tables FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public full access on shifts" ON shifts FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public full access on orders" ON orders FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public full access on order_items" ON order_items FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public full access on settings" ON settings FOR ALL USING (true) WITH CHECK (true);
+-- All database access goes through server-validated application routes.
+-- Apply migrations/20261009_operations.sql after this bootstrap schema.
 
 -- ==============================================================================
 -- 12. SEED INITIAL DATA

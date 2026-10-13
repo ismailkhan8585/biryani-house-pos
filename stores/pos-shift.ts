@@ -6,6 +6,7 @@ export interface ShiftInfo {
   id: string;
   shiftNumber: string;
   branchId: string;
+  staffId: string;
   operatorName: string;
   openingCash: number;
   openedAt: string;
@@ -42,6 +43,6 @@ export const useShiftStore = create<ShiftState>()(
     }),
     {
       name: "pos-shift",
-    }
-  )
+    },
+  ),
 );

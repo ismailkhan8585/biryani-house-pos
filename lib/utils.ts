@@ -14,8 +14,9 @@ export function generateOrderNumber(): string {
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
-  const time = String(now.getTime()).slice(-5);
-  return `ORD-${year}${month}${day}-${time}`;
+  const time = now.getTime().toString(36).toUpperCase();
+  const random = crypto.randomUUID().split("-")[0].toUpperCase();
+  return `ORD-${year}${month}${day}-${time}-${random}`;
 }
 
 // Generate shift number
@@ -33,7 +34,11 @@ export function timeElapsed(timestamp: string): string {
 
 // Format datetime for display
 export function formatDateTime(timestamp: string): string {
-  return format(new Date(timestamp), "dd MMM yyyy, hh:mm a");
+  return new Intl.DateTimeFormat("en-PK", {
+    timeZone: "Asia/Karachi",
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(timestamp));
 }
 
 // Format time only
@@ -50,7 +55,7 @@ export function formatDate(timestamp: string): string {
 export function calculateDiscount(
   subtotal: number,
   discount: number,
-  discountType: "AMOUNT" | "PERCENT"
+  discountType: "AMOUNT" | "PERCENT",
 ): number {
   if (discountType === "PERCENT") {
     return Math.round((subtotal * discount) / 100);
@@ -59,11 +64,19 @@ export function calculateDiscount(
 }
 
 // Calculate total with discount and tax
+export function configuredTaxRate(settings: Record<string, string>): number {
+  if (settings.tax_enabled !== "true") return 0;
+  const rate = Number(settings.tax_rate);
+  if (!Number.isFinite(rate) || rate < 0 || rate > 100)
+    throw new Error("Tax rate must be between 0 and 100");
+  return rate;
+}
+
 export function calculateTotal(
   subtotal: number,
   discount: number,
   discountType: "AMOUNT" | "PERCENT",
-  taxRate: number = 0
+  taxRate: number = 0,
 ): { discountAmount: number; taxAmount: number; total: number } {
   const discountAmount = calculateDiscount(subtotal, discount, discountType);
   const afterDiscount = subtotal - discountAmount;
@@ -83,20 +96,6 @@ export function getHourLabel(hour: number): string {
   if (hour < 12) return `${hour} AM`;
   if (hour === 12) return "12 PM";
   return `${hour - 12} PM`;
-}
-
-// Status color classes (static for Tailwind safelist)
-export function getOrderStatusClasses(status: string): string {
-  const map: Record<string, string> = {
-    PENDING: "bg-amber-100 text-amber-700",
-    PREPARING: "bg-blue-100 text-blue-700",
-    READY: "bg-green-100 text-green-700",
-    SERVED: "bg-purple-100 text-purple-700",
-    DELIVERED: "bg-purple-100 text-purple-700",
-    COMPLETED: "bg-green-100 text-green-700",
-    CANCELLED: "bg-red-100 text-red-700",
-  };
-  return map[status] || "bg-gray-100 text-gray-700";
 }
 
 export function getOrderTypeClasses(type: string): string {

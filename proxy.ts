@@ -3,10 +3,15 @@ import type { NextRequest } from "next/server";
 import { verifyToken } from "@/lib/auth";
 
 // Public routes that don't require auth
-const PUBLIC_ROUTES = ["/login", "/api/auth/login", "/api/auth/logout", "/api/branches"];
+const PUBLIC_ROUTES = [
+  "/login",
+  "/api/auth/login",
+  "/api/auth/logout",
+  "/api/branches",
+];
 
 // Admin-only routes
-const ADMIN_ROUTES = ["/admin"];
+const ADMIN_ROUTES = ["/admin", "/menu", "/settings"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -47,6 +52,16 @@ export async function proxy(request: NextRequest) {
     const response = NextResponse.redirect(new URL("/login", request.url));
     response.cookies.delete("pos_token");
     return response;
+  }
+
+  // Retired display URLs return users to their role's dashboard.
+  if (
+    /^\/(?:kitchen|kds)(?:\/|$)/.test(pathname) ||
+    /^\/admin\/(?:kitchen|kds)(?:\/|$)/.test(pathname)
+  ) {
+    return NextResponse.redirect(
+      new URL(payload.role === "admin" ? "/admin" : "/pos", request.url),
+    );
   }
 
   // Admin-only route protection

@@ -1,62 +1,61 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase";
-import { getAuth } from "@/lib/auth";
-
-// POST /api/sync — sync offline orders
-export async function POST(request: NextRequest) {
+import { session, apiError, ApiError } from "@/lib/api";
+import { createOrder } from "@/lib/order-service";
+export async function POST(req: NextRequest) {
   try {
-    const auth = await getAuth();
-    if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const body = await request.json();
-    const { orders } = body;
-
-    if (!orders || !Array.isArray(orders)) {
-      return NextResponse.json({ error: "Orders array required" }, { status: 400 });
-    }
-
-    const serverClient = createServerClient();
-    const results = { synced: 0, failed: 0, skipped: 0 };
-
-    for (const order of orders) {
+    const auth = await session();
+    const { orders } = await req.json();
+    if (!Array.isArray(orders) || orders.length > 100)
+      throw new ApiError("Invalid batch");
+    const syncedIds: string[] = [];
+    const failures: { id: string; error: string }[] = [];
+    for (const o of orders) {
       try {
-        // Check if already synced
-        const { data: existing } = await serverClient
-          .from("orders")
-          .select("id")
-          .eq("offline_order_id", order.offline_order_id)
-          .maybeSingle();
-
-        if (existing) {
-          results.skipped++;
-          continue;
-        }
-
-        const { data: newOrder, error: orderError } = await serverClient
-          .from("orders")
-          .insert({ ...order, sale_source: "OFFLINE" })
-          .select()
-          .single();
-
-        if (orderError) throw orderError;
-
-        if (order._items && order._items.length > 0) {
-          await serverClient.from("order_items").insert(
-            order._items.map((item: Record<string, unknown>) => ({
-              ...item,
-              order_id: newOrder.id,
-            }))
+        if (o.staff_id !== auth.staffId)
+          throw new ApiError(
+            "Sign in as the original cashier to sync this sale",
+            403,
           );
-        }
-
-        results.synced++;
-      } catch {
-        results.failed++;
+        await createOrder(
+          auth,
+          {
+            branchId: o.branch_id,
+            shiftId: o.shift_id,
+            offlineOrderId: o.offline_order_id,
+            orderNumber: o.order_number,
+            orderType: o.order_type,
+            tableId: o.table_id,
+            customerName: o.customer_name,
+            customerPhone: o.customer_phone,
+            deliveryAddress: o.delivery_address,
+            discount: o.discount,
+            discountType: o.discount_type,
+            tax: o.tax,
+            totalAmount: o.total_amount,
+            paymentMethod: o.payment_method,
+            cashAmount: o.cash_amount,
+            createdAt: o.created_at,
+            items: (o._items || []).map((i: Record<string, unknown>) => ({
+              menuItemId: i.menu_item_id,
+              name: i.item_name,
+              nameUr: i.item_name_ur,
+              quantity: i.quantity,
+              unitPrice: i.unit_price,
+              notes: i.notes,
+            })),
+          },
+          true,
+        );
+        syncedIds.push(o.id);
+      } catch (e) {
+        failures.push({
+          id: o.id,
+          error: e instanceof Error ? e.message : "Sync failed",
+        });
       }
     }
-
-    return NextResponse.json(results);
-  } catch {
-    return NextResponse.json({ error: "Sync failed" }, { status: 500 });
+    return NextResponse.json({ syncedIds, failures });
+  } catch (e) {
+    return apiError(e);
   }
 }

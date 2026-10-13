@@ -1,84 +1,62 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
-import { getAuth, requireAdmin } from "@/lib/auth";
-
-const FALLBACK_BRANCHES = [
-  {
-    id: "11111111-1111-1111-1111-111111111111",
-    name: "Branch 1 — Main",
-    name_ur: "برانچ ۱ — مین",
-    address: "Shop #1-3, Food Street",
-    phone: "0300-1111111",
-    pin: "1111",
-    color: "#F97316",
-    is_active: true,
-  },
-  {
-    id: "22222222-2222-2222-2222-222222222222",
-    name: "Branch 2 — City",
-    name_ur: "برانچ ۲ — سٹی",
-    address: "Commercial Market, Block B",
-    phone: "0300-2222222",
-    pin: "2222",
-    color: "#EF4444",
-    is_active: true,
-  },
-  {
-    id: "33333333-3333-3333-3333-333333333333",
-    name: "Branch 3 — North",
-    name_ur: "برانچ ۳ — نارتھ",
-    address: "Sector F-7, North Avenue",
-    phone: "0300-3333333",
-    pin: "3333",
-    color: "#8B5CF6",
-    is_active: true,
-  },
-];
-
+import { session, apiError, ApiError } from "@/lib/api";
+const fields = "id,name,name_ur,address,phone,color,is_active,receipt_footer";
 export async function GET() {
   try {
-    const auth = await getAuth();
-    const serverClient = createServerClient();
-    
-    // If admin, select PIN as well for management
-    const selectFields = auth?.role === "admin"
-      ? "id, name, name_ur, address, phone, pin, color, is_active"
-      : "id, name, name_ur, address, color";
-
-    const { data, error } = await serverClient
+    const { data, error } = await createServerClient()
       .from("branches")
-      .select(selectFields)
+      .select(fields)
       .eq("is_active", true)
       .order("created_at");
-
-    if (error || !data || data.length === 0) {
-      return NextResponse.json({ branches: FALLBACK_BRANCHES });
-    }
+    if (error) throw error;
     return NextResponse.json({ branches: data });
-  } catch {
-    return NextResponse.json({ branches: FALLBACK_BRANCHES });
+  } catch (e) {
+    return apiError(e);
   }
 }
-
-export async function PATCH(request: NextRequest) {
+export async function PATCH(req: NextRequest) {
   try {
-    await requireAdmin();
-    const body = await request.json();
-    const { id, ...updates } = body;
-
-    if (!id) return NextResponse.json({ error: "Branch ID required" }, { status: 400 });
-
-    const serverClient = createServerClient();
-    const { data, error } = await serverClient
+    await session(true);
+    const b = await req.json();
+    if (!b || typeof b.id !== "string" || !b.id)
+      throw new ApiError("Branch required");
+    const limits: Record<string, number> = {
+      name: 100,
+      name_ur: 100,
+      address: 500,
+      phone: 50,
+      receipt_footer: 500,
+      color: 7,
+    };
+    for (const key of Object.keys(limits)) {
+      if (
+        b[key] !== undefined &&
+        b[key] !== null &&
+        (typeof b[key] !== "string" || b[key].length > limits[key])
+      )
+        throw new ApiError("Invalid " + key);
+    }
+    if (b.name !== undefined && (typeof b.name !== "string" || !b.name.trim()))
+      throw new ApiError("Branch name is required");
+    if (b.color !== undefined && !/^#[0-9a-f]{6}$/i.test(b.color))
+      throw new ApiError("Use a valid branch color");
+    const values = Object.fromEntries(
+      ["name", "name_ur", "address", "phone", "receipt_footer", "color"]
+        .filter((k) => k in b)
+        .map((k) => [k, b[k]]),
+    );
+    const { data, error } = await createServerClient()
       .from("branches")
-      .update(updates)
-      .eq("id", id)
-      .select()
-      .single();
-
+      .update(values)
+      .eq("id", b.id)
+      .select(fields)
+      .maybeSingle();
     if (error) throw error;
+    if (!data)
+      throw new ApiError("Branch not found. Refresh and try again.", 404);
     return NextResponse.json({ branch: data });
-  } catch {
-    return NextResponse.json({ error: "Failed to update branch" }, { status: 500 });
+  } catch (e) {
+    return apiError(e);
   }
 }

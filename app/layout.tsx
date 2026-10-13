@@ -1,18 +1,33 @@
+import AppNavigation from "@/components/AppNavigation";
+import { getAuth } from "@/lib/auth";
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
   title: "Biryani House POS — Restaurant Point of Sale",
-  description: "Fast, reliable POS system for Biryani House branches. Manage orders, tables, payments, and reports.",
+  description:
+    "Fast, reliable POS system for Biryani House branches. Manage orders, tables, payments, and reports.",
+  icons: {
+    icon: { url: "/ilyas-logo.png", type: "image/png", sizes: "1254x1254" },
+    apple: "/ilyas-logo.png",
+  },
   keywords: ["POS", "restaurant", "biryani", "point of sale", "Pakistan"],
   authors: [{ name: "Biryani House" }],
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const auth = await getAuth();
   return (
     <html lang="en" className="h-full">
       <body className="h-full antialiased">
+        {auth && (
+          <AppNavigation
+            role={auth.role}
+            staffName={auth.staffName}
+            branchName={auth.branchName}
+          />
+        )}
         {children}
         <Toaster
           position="top-right"

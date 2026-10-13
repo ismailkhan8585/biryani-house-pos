@@ -13,7 +13,10 @@ interface POSDBSchema extends DBSchema {
   };
   orders: {
     key: string;
-    value: Order & { _items: OrderItem[]; _syncStatus: "PENDING" | "SYNCED" | "FAILED" };
+    value: Order & {
+      _items: OrderItem[];
+      _syncStatus: "PENDING" | "SYNCED" | "FAILED";
+    };
     indexes: { "by-sync": string; "by-branch": string };
   };
   settings: {
@@ -50,7 +53,9 @@ async function getDB(): Promise<IDBPDatabase<POSDBSchema>> {
       database.createObjectStore("categories", { keyPath: "id" });
 
       // Orders store
-      const ordersStore = database.createObjectStore("orders", { keyPath: "id" });
+      const ordersStore = database.createObjectStore("orders", {
+        keyPath: "id",
+      });
       ordersStore.createIndex("by-sync", "_syncStatus");
       ordersStore.createIndex("by-branch", "branch_id");
 
@@ -69,10 +74,8 @@ async function getDB(): Promise<IDBPDatabase<POSDBSchema>> {
 export async function cacheMenuItems(items: MenuItem[]): Promise<void> {
   const database = await getDB();
   const tx = database.transaction("menu", "readwrite");
-  await Promise.all([
-    ...items.map((item) => tx.store.put(item)),
-    tx.done,
-  ]);
+  await tx.store.clear();
+  await Promise.all([...items.map((item) => tx.store.put(item)), tx.done]);
 }
 
 export async function getCachedMenuItems(): Promise<MenuItem[]> {
@@ -83,10 +86,8 @@ export async function getCachedMenuItems(): Promise<MenuItem[]> {
 export async function cacheCategories(categories: Category[]): Promise<void> {
   const database = await getDB();
   const tx = database.transaction("categories", "readwrite");
-  await Promise.all([
-    ...categories.map((cat) => tx.store.put(cat)),
-    tx.done,
-  ]);
+  await tx.store.clear();
+  await Promise.all([...categories.map((cat) => tx.store.put(cat)), tx.done]);
 }
 
 export async function getCachedCategories(): Promise<Category[]> {
@@ -98,7 +99,7 @@ export async function getCachedCategories(): Promise<Category[]> {
 
 export async function saveOfflineOrder(
   order: Order,
-  items: OrderItem[]
+  items: OrderItem[],
 ): Promise<void> {
   const database = await getDB();
   await database.put("orders", {
@@ -109,11 +110,19 @@ export async function saveOfflineOrder(
 }
 
 export async function getPendingOrders(): Promise<
-  (Order & { _items: OrderItem[]; _syncStatus: "PENDING" | "SYNCED" | "FAILED" })[]
+  (Order & {
+    _items: OrderItem[];
+    _syncStatus: "PENDING" | "SYNCED" | "FAILED";
+  })[]
 > {
   const database = await getDB();
-  const all = await database.getAllFromIndex("orders", "by-sync", "PENDING");
-  return all;
+  const pending = await database.getAllFromIndex(
+    "orders",
+    "by-sync",
+    "PENDING",
+  );
+  const failed = await database.getAllFromIndex("orders", "by-sync", "FAILED");
+  return [...pending, ...failed];
 }
 
 export async function markOrderSynced(orderId: string): Promise<void> {
@@ -141,10 +150,7 @@ export async function markOrderFailed(orderId: string): Promise<void> {
 export async function cacheSettings(settings: Setting[]): Promise<void> {
   const database = await getDB();
   const tx = database.transaction("settings", "readwrite");
-  await Promise.all([
-    ...settings.map((s) => tx.store.put(s)),
-    tx.done,
-  ]);
+  await Promise.all([...settings.map((s) => tx.store.put(s)), tx.done]);
 }
 
 export async function getCachedSetting(key: string): Promise<string | null> {

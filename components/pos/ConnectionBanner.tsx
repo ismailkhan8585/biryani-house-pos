@@ -24,10 +24,12 @@ export default function ConnectionBanner() {
       <div className="flex items-center gap-2">
         <WifiOff className="w-4 h-4 flex-shrink-0" />
         <span>
-          <strong>Offline Mode</strong> — Orders will be saved locally and synced when connection returns.
+          <strong>Offline Mode</strong> — Orders will be saved locally and
+          synced when connection returns.
         </span>
       </div>
       <button
+        aria-label="Dismiss connection notice"
         onClick={() => setDismissed(true)}
         className="p-0.5 rounded hover:bg-amber-600 transition-colors flex-shrink-0"
       >

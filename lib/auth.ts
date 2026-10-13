@@ -1,97 +1,88 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { createServerClient } from "./supabase";
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "biryani-house-secret"
-);
-
 export interface AuthPayload {
   branchId: string;
   branchName: string;
   role: "branch" | "admin";
+  staffId: string;
+  staffName: string;
   iat?: number;
   exp?: number;
 }
-
-// Sign a JWT with branch/admin payload
-export async function signToken(payload: Omit<AuthPayload, "iat" | "exp">): Promise<string> {
-  return await new SignJWT(payload as Record<string, unknown>)
+function secret() {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32)
+    throw new Error("JWT_SECRET must have at least 32 characters");
+  return new TextEncoder().encode(process.env.JWT_SECRET);
+}
+export async function signToken(payload: Omit<AuthPayload, "iat" | "exp">) {
+  return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("24h")
-    .sign(JWT_SECRET);
+    .setExpirationTime("12h")
+    .sign(secret());
 }
-
-// Verify a JWT and return the payload
 export async function verifyToken(token: string): Promise<AuthPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, secret(), {
+      algorithms: ["HS256"],
+    });
+    if (
+      typeof payload.staffId !== "string" ||
+      !payload.staffId ||
+      typeof payload.staffName !== "string" ||
+      !payload.staffName ||
+      typeof payload.branchId !== "string" ||
+      !payload.branchId ||
+      typeof payload.branchName !== "string" ||
+      !payload.branchName ||
+      typeof payload.exp !== "number" ||
+      (payload.role === "branch" &&
+        ["all", "admin"].includes(payload.branchId)) ||
+      !["admin", "branch"].includes(String(payload.role))
+    )
+      return null;
     return payload as unknown as AuthPayload;
   } catch {
     return null;
   }
 }
-
-// Get the current auth payload from the cookie (server-side)
 export async function getAuth(): Promise<AuthPayload | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("pos_token")?.value;
+  const token = (await cookies()).get("pos_token")?.value;
   if (!token) return null;
-  return verifyToken(token);
+  const auth = await verifyToken(token);
+  if (!auth) return null;
+  const { data, error } = await createServerClient()
+    .from("staff")
+    .select("id,name,role,branch_id,is_active")
+    .eq("id", auth.staffId)
+    .single();
+  if (
+    error ||
+    !data?.is_active ||
+    data.role !== auth.role ||
+    (data.role === "branch" && data.branch_id !== auth.branchId)
+  )
+    return null;
+  if (auth.branchId !== "all" && auth.branchId !== "admin") {
+    const { data: branch, error: branchError } = await createServerClient()
+      .from("branches")
+      .select("name")
+      .eq("id", auth.branchId)
+      .eq("is_active", true)
+      .single();
+    if (branchError || !branch) return null;
+    return { ...auth, staffName: data.name, branchName: branch.name };
+  }
+  return { ...auth, staffName: data.name };
 }
-
-// Require auth — throws if not authenticated
-export async function requireAuth(): Promise<AuthPayload> {
+export async function requireAuth() {
   const auth = await getAuth();
   if (!auth) throw new Error("Unauthorized");
   return auth;
 }
-
-// Require admin — throws if not admin
-export async function requireAdmin(): Promise<AuthPayload> {
+export async function requireAdmin() {
   const auth = await requireAuth();
   if (auth.role !== "admin") throw new Error("Forbidden");
   return auth;
-}
-
-// Verify branch PIN against Supabase (with fallback)
-const FALLBACK_BRANCH_PINS = [
-  { id: "11111111-1111-1111-1111-111111111111", name: "Branch 1 — Main", pin: "1111", color: "#F97316" },
-  { id: "22222222-2222-2222-2222-222222222222", name: "Branch 2 — City", pin: "2222", color: "#EF4444" },
-  { id: "33333333-3333-3333-3333-333333333333", name: "Branch 3 — North", pin: "3333", color: "#8B5CF6" },
-];
-
-export async function verifyBranchPin(
-  branchId: string,
-  pin: string
-): Promise<{ id: string; name: string; color: string } | null> {
-  try {
-    const serverClient = createServerClient();
-    const { data, error } = await serverClient
-      .from("branches")
-      .select("id, name, color, pin")
-      .eq("id", branchId)
-      .eq("is_active", true)
-      .single();
-
-    if (!error && data) {
-      if (data.pin !== pin) return null;
-      return { id: data.id, name: data.name, color: data.color };
-    }
-  } catch {
-    // Ignore and fallback
-  }
-
-  // Fallback check
-  const fallback = FALLBACK_BRANCH_PINS.find((b) => b.id === branchId);
-  if (fallback && fallback.pin === pin) {
-    return { id: fallback.id, name: fallback.name, color: fallback.color };
-  }
-  return null;
-}
-
-// Verify master password
-export function verifyMasterPassword(password: string): boolean {
-  return password === process.env.MASTER_PASSWORD;
 }

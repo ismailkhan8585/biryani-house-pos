@@ -1,54 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
+import { session, apiError, ApiError } from "@/lib/api";
 import { createServerClient } from "@/lib/supabase";
-import { getAuth } from "@/lib/auth";
-
-// GET /api/orders/[id]
+import { ORDER_SELECT } from "@/lib/order-service";
 export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const { id } = await params;
   try {
-    const auth = await getAuth();
-    if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const serverClient = createServerClient();
-    const { data, error } = await serverClient
+    const auth = await session();
+    const { id } = await params;
+    let q = createServerClient()
       .from("orders")
-      .select("*, order_items(*), branches(name, color)")
-      .eq("id", id)
-      .single();
-
-    if (error) throw error;
+      .select(ORDER_SELECT)
+      .eq("id", id);
+    if (auth.role !== "admin") q = q.eq("branch_id", auth.branchId);
+    const { data, error } = await q.single();
+    if (error || !data) throw new ApiError("Order not found", 404);
     return NextResponse.json({ order: data });
-  } catch {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  } catch (e) {
+    return apiError(e);
   }
 }
-
-// PATCH /api/orders/[id] — update order
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  try {
-    const auth = await getAuth();
-    if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const body = await request.json();
-    const serverClient = createServerClient();
-
-    const { data, error } = await serverClient
-      .from("orders")
-      .update({ ...body, updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return NextResponse.json({ order: data });
-  } catch {
-    return NextResponse.json({ error: "Failed to update order" }, { status: 500 });
-  }
-}
+// Arbitrary order/payment updates are deliberately not exposed. Use audited actions.

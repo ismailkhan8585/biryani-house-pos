@@ -1,5 +1,8 @@
 "use client";
 
+import BrandLogo from "@/components/BrandLogo";
+import CategoryManager from "./CategoryManager";
+
 import { useEffect, useState, useCallback } from "react";
 import {
   ArrowLeft,
@@ -26,6 +29,7 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [showCategories, setShowCategories] = useState(false);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -49,15 +53,18 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
       const data = await res.json();
       setItems(data.items || []);
       setCategories(data.categories || []);
-      if (!formData.category_id && data.categories?.length > 0) {
-        setFormData((prev) => ({ ...prev, category_id: data.categories[0].id }));
+      if (data.categories?.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          category_id: prev.category_id || data.categories[0].id,
+        }));
       }
     } catch {
       toast.error("Could not load menu items");
     } finally {
       setLoading(false);
     }
-  }, [formData.category_id]);
+  }, []);
 
   useEffect(() => {
     loadMenu();
@@ -101,7 +108,9 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
       const updated = !item.is_available;
       // Optimistic update
       setItems((prev) =>
-        prev.map((i) => (i.id === item.id ? { ...i, is_available: updated } : i))
+        prev.map((i) =>
+          i.id === item.id ? { ...i, is_available: updated } : i,
+        ),
       );
 
       const res = await fetch("/api/menu", {
@@ -110,7 +119,9 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
         body: JSON.stringify({ id: item.id, is_available: updated }),
       });
       if (!res.ok) throw new Error();
-      toast.success(`${item.name_en} marked ${updated ? "Available" : "Sold Out"}`);
+      toast.success(
+        `${item.name_en} marked ${updated ? "Available" : "Sold Out"}`,
+      );
     } catch {
       toast.error("Failed to update availability");
       loadMenu();
@@ -122,7 +133,9 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
     try {
       const updated = !item.is_featured;
       setItems((prev) =>
-        prev.map((i) => (i.id === item.id ? { ...i, is_featured: updated } : i))
+        prev.map((i) =>
+          i.id === item.id ? { ...i, is_featured: updated } : i,
+        ),
       );
 
       const res = await fetch("/api/menu", {
@@ -209,8 +222,8 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
   return (
     <div className="min-h-screen bg-stone-50 text-stone-800 flex flex-col font-sans pb-16">
       {/* Top Navbar */}
-      <header className="bg-white border-b border-orange-100 px-6 py-4 sticky top-0 z-20 shadow-sm flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+      <header className="page-header bg-white border-b border-orange-100 px-6 py-4 sticky top-0 z-20 shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <Link
             href="/admin"
             className="flex items-center gap-2 px-3 py-2 rounded-xl bg-orange-50 hover:bg-orange-100 text-stone-700 text-sm font-medium transition-colors"
@@ -218,6 +231,7 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
             <ArrowLeft className="w-4 h-4 text-orange-600" />
             <span>Master Admin</span>
           </Link>
+          <BrandLogo />
           <div>
             <h1 className="text-xl font-bold tracking-tight text-stone-900 flex items-center gap-2">
               🍛 Menu & Price Management
@@ -229,13 +243,24 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setShowCategories(true)}
+            disabled={loading}
+          >
+            <Plus size={16} /> Manage Categories
+          </button>
           <button
             onClick={loadMenu}
             className="p-2.5 rounded-xl bg-white border border-stone-200 text-stone-600 hover:bg-orange-50 hover:text-orange-600 transition-colors shadow-sm"
+            aria-label="Refresh Menu"
             title="Refresh Menu"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-orange-500" : ""}`} />
+            <RefreshCw
+              className={`w-4 h-4 ${loading ? "animate-spin text-orange-500" : ""}`}
+            />
           </button>
 
           <button
@@ -248,6 +273,34 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
         </div>
       </header>
 
+      {showCategories && (
+        <CategoryManager
+          categories={categories}
+          items={items}
+          onClose={() => setShowCategories(false)}
+          onSaved={(category) => {
+            setCategories((current) =>
+              [...current.filter((c) => c.id !== category.id), category].sort(
+                (a, b) =>
+                  a.sort_order - b.sort_order ||
+                  a.name_en.localeCompare(b.name_en),
+              ),
+            );
+            setItems((current) =>
+              current.map((item) =>
+                item.category_id === category.id
+                  ? { ...item, categories: category }
+                  : item,
+              ),
+            );
+            if (isModalOpen)
+              setFormData((current) => ({
+                ...current,
+                category_id: category.id,
+              }));
+          }}
+        />
+      )}
       {/* Main Content */}
       <main className="max-w-7xl mx-auto w-full px-6 pt-6 space-y-6">
         {/* Search & Category Filter */}
@@ -281,7 +334,7 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
           </div>
 
           {/* Search bar */}
-          <div className="relative min-w-[260px]">
+          <div className="relative w-full sm:w-auto sm:min-w-[260px]">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
             <input
               type="text"
@@ -296,7 +349,7 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
         {/* Menu Items Table / Grid */}
         <div className="bg-white rounded-3xl border border-orange-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="menu-management-table w-full text-left text-sm">
               <thead className="bg-stone-50 border-b border-stone-200/80 text-stone-500 text-xs uppercase tracking-wider font-semibold">
                 <tr>
                   <th className="py-3.5 px-6">Dish</th>
@@ -312,14 +365,19 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
                 {filteredItems.map((item) => {
                   const cat = categories.find((c) => c.id === item.category_id);
                   return (
-                    <tr key={item.id} className="hover:bg-orange-50/30 transition-colors">
-                      <td className="py-4 px-6">
+                    <tr
+                      key={item.id}
+                      className="hover:bg-orange-50/30 transition-colors"
+                    >
+                      <td data-label="Dish" className="py-4 px-6">
                         <div className="flex items-center gap-3">
                           <span className="text-2xl w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center">
                             {item.emoji}
                           </span>
                           <div>
-                            <div className="font-bold text-stone-900">{item.name_en}</div>
+                            <div className="font-bold text-stone-900">
+                              {item.name_en}
+                            </div>
                             {item.description && (
                               <div className="text-xs text-stone-400 max-w-xs truncate">
                                 {item.description}
@@ -328,18 +386,18 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 px-4 font-urdu text-base text-stone-600">
+                      <td data-label="Urdu name" className="py-4 px-4 font-urdu text-base text-stone-600">
                         {item.name_ur || "—"}
                       </td>
-                      <td className="py-4 px-4">
+                      <td data-label="Category" className="py-4 px-4">
                         <span className="text-xs bg-stone-100 text-stone-700 px-2.5 py-1 rounded-lg font-medium inline-flex items-center gap-1">
                           {cat?.icon} {cat?.name_en || "General"}
                         </span>
                       </td>
-                      <td className="py-4 px-4 font-mono font-bold text-stone-900">
+                      <td data-label="Price" className="py-4 px-4 font-mono font-bold text-stone-900">
                         {formatCurrency(item.price)}
                       </td>
-                      <td className="py-4 px-4 text-center">
+                      <td data-label="Status" className="py-4 px-4 text-center">
                         <button
                           onClick={() => toggleAvailability(item)}
                           className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
@@ -351,7 +409,7 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
                           {item.is_available ? "In Stock" : "Sold Out"}
                         </button>
                       </td>
-                      <td className="py-4 px-4 text-center">
+                      <td data-label="Featured" className="py-4 px-4 text-center">
                         <button
                           onClick={() => toggleFeatured(item)}
                           className={`p-1.5 rounded-lg transition-colors ${
@@ -359,16 +417,23 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
                               ? "text-amber-500 bg-amber-50 hover:bg-amber-100"
                               : "text-stone-300 hover:text-stone-400"
                           }`}
-                          title={item.is_featured ? "Featured item" : "Mark as featured"}
+                          title={
+                            item.is_featured
+                              ? "Featured item"
+                              : "Mark as featured"
+                          }
                         >
-                          <Star className={`w-4 h-4 ${item.is_featured ? "fill-amber-400" : ""}`} />
+                          <Star
+                            className={`w-4 h-4 ${item.is_featured ? "fill-amber-400" : ""}`}
+                          />
                         </button>
                       </td>
-                      <td className="py-4 px-6 text-right">
+                      <td data-label="Actions" className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => handleOpenEdit(item)}
                             className="p-2 rounded-xl text-stone-500 hover:text-orange-600 hover:bg-orange-50 transition-colors"
+                            aria-label="Edit"
                             title="Edit"
                           >
                             <Edit2 className="w-4 h-4" />
@@ -376,6 +441,7 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
                           <button
                             onClick={() => handleDelete(item.id, item.name_en)}
                             className="p-2 rounded-xl text-stone-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            aria-label="Delete"
                             title="Delete"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -394,7 +460,7 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
       {/* Add / Edit Modal */}
       {isModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-sm"
+          className="responsive-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-sm"
           onClick={() => setIsModalOpen(false)}
         >
           <div
@@ -423,17 +489,23 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
                     type="text"
                     required
                     value={formData.name_en}
-                    onChange={(e) => setFormData({ ...formData, name_en: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name_en: e.target.value })
+                    }
                     placeholder="e.g. Chicken Biryani Single"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-sm focus:border-orange-500 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1">Emoji</label>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
+                    Emoji
+                  </label>
                   <input
                     type="text"
                     value={formData.emoji}
-                    onChange={(e) => setFormData({ ...formData, emoji: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, emoji: e.target.value })
+                    }
                     className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-sm text-center text-xl focus:border-orange-500 outline-none"
                   />
                 </div>
@@ -447,7 +519,9 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
                   type="text"
                   dir="rtl"
                   value={formData.name_ur}
-                  onChange={(e) => setFormData({ ...formData, name_ur: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name_ur: e.target.value })
+                  }
                   placeholder="چکن بریانی سنگل"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-sm font-urdu focus:border-orange-500 outline-none"
                 />
@@ -459,16 +533,29 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
                     Category *
                   </label>
                   <select
+                    required
                     value={formData.category_id}
-                    onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, category_id: e.target.value })
+                    }
                     className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-sm focus:border-orange-500 outline-none bg-white"
                   >
+                    <option value="" disabled>
+                      Select a category
+                    </option>
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.icon} {c.name_en}
                       </option>
                     ))}
                   </select>
+                  <button
+                    type="button"
+                    className="mt-2 text-xs font-semibold text-orange-700 underline"
+                    onClick={() => setShowCategories(true)}
+                  >
+                    + Create or edit category
+                  </button>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-stone-700 mb-1">
@@ -480,7 +567,9 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
                     min="0"
                     step="10"
                     value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, price: e.target.value })
+                    }
                     placeholder="350"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-sm font-mono focus:border-orange-500 outline-none"
                   />
@@ -494,7 +583,9 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
                 <textarea
                   rows={2}
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
                   placeholder="Served with raita and salad..."
                   className="w-full px-3.5 py-2 rounded-xl border border-stone-200 text-sm focus:border-orange-500 outline-none"
                 />
@@ -505,7 +596,12 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
                   <input
                     type="checkbox"
                     checked={formData.is_available}
-                    onChange={(e) => setFormData({ ...formData, is_available: e.target.checked })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        is_available: e.target.checked,
+                      })
+                    }
                     className="w-4 h-4 rounded text-orange-500 focus:ring-orange-400"
                   />
                   <span>Available (In Stock)</span>
@@ -515,7 +611,12 @@ export default function MenuClient({ role: _role }: MenuClientProps) {
                   <input
                     type="checkbox"
                     checked={formData.is_featured}
-                    onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        is_featured: e.target.checked,
+                      })
+                    }
                     className="w-4 h-4 rounded text-orange-500 focus:ring-orange-400"
                   />
                   <span>Featured Dish ⭐</span>
