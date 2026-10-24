@@ -14,7 +14,9 @@ interface ConnectionState {
 }
 
 export const useConnectionStore = create<ConnectionState>((set) => ({
-  isOnline: typeof navigator !== "undefined" ? navigator.onLine : true,
+  // Keep the server and browser's initial snapshot identical. ConnectionBadge
+  // reads navigator.onLine after mount and subscribes to connection changes.
+  isOnline: true,
   pendingSyncCount: 0,
   lastSyncAt: null,
   isSyncing: false,

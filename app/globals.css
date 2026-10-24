@@ -563,3 +563,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
   }
   button:hover, button:active { scale: none; }
 }
+
+.install-app-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px max(16px,env(safe-area-inset-right)) 8px max(16px,env(safe-area-inset-left)); background:#fff7ed; border-bottom:1px solid #fed7aa; color:#9a3412; font-size:13px; }
+.install-app-button { display:inline-flex; align-items:center; justify-content:center; gap:8px; flex-shrink:0; min-height:40px; padding:8px 16px; border-radius:12px; background:#c2410c; color:white; font-weight:600; box-shadow:0 2px 6px #9a341220; }
+.install-app-button:hover { background:#9a3412; }
+.install-app-button:disabled { opacity:.6; }
+.install-app-dialog { position:fixed; inset:0; margin:auto; width:calc(100% - 32px); max-width:480px; max-height:calc(100dvh - 32px); overflow:auto; padding:24px; border:1px solid #fed7aa; border-radius:24px; background:white; color:#292524; box-shadow:0 24px 80px #0003; }
+.install-app-dialog::backdrop { background:#1c191780; backdrop-filter:blur(4px); }
+body:has(.install-app-bar) .pos-shell { height:calc(100dvh - 113px) !important; }
+@media(max-width:1023px) { body:has(.install-app-bar) .pos-shell { height:auto !important; } }

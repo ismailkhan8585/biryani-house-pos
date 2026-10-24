@@ -38,6 +38,19 @@ function load(file, mocks = {}) {
   return exports;
 }
 const ops = load("lib/operations.ts");
+test("connection snapshots match during SSR and offline browser hydration", () => {
+  for (const navigator of [undefined, {}, { onLine: true }, { onLine: false }]) {
+    const { useConnectionStore: store } = load("stores/pos-connection.ts", {
+      __globals: { navigator },
+    });
+    assert.equal(store.getInitialState().isOnline, true);
+    store.getState().setOnline(false);
+    assert.equal(store.getState().isOnline, false);
+    assert.equal(store.getInitialState().isOnline, true);
+    store.getState().setOnline(true);
+    assert.equal(store.getState().isOnline, true);
+  }
+});
 test("settings reject unknown keys and invalid values before saving", async () => {
   let saved,
     writes = 0;

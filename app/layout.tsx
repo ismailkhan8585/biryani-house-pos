@@ -1,6 +1,7 @@
 import AppNavigation from "@/components/AppNavigation";
 import { getAuth } from "@/lib/auth";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import InstallApp from "@/components/InstallApp";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 
@@ -10,17 +11,21 @@ export const metadata: Metadata = {
     "Fast, reliable POS system for Biryani House branches. Manage orders, tables, payments, and reports.",
   icons: {
     icon: { url: "/ilyas-logo.png", type: "image/png", sizes: "1254x1254" },
-    apple: "/ilyas-logo.png",
+    apple: "/icons/pos-180.png",
   },
   keywords: ["POS", "restaurant", "biryani", "point of sale", "Pakistan"],
   authors: [{ name: "Biryani House" }],
+  appleWebApp: { capable: true, title: "Ilyas POS", statusBarStyle: "default" },
 };
+
+export const viewport: Viewport = { themeColor: "#F97316" };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const auth = await getAuth();
   return (
     <html lang="en" className="h-full">
       <body className="h-full antialiased">
+        <InstallApp />
         {auth && (
           <AppNavigation
             role={auth.role}

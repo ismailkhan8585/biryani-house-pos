@@ -303,3 +303,11 @@ The latest implementation check passed **30 automated tests**, ESLint, and the p
 Before using a release at a shop, test both roles and each branch on the actual devices. Verify a sale and receipt, unpaid-bill settlement, table release, report totals, shift closing, and an offline disconnect → refresh → sale → reconnect cycle with exactly one matching server bill.
 
 **Real-browser offline hydration, physical printer output, and live payment acceptance still require device testing.** Passing automated checks alone is not a claim that every deployment or printer has been verified.
+
+### Install the POS app
+
+Open the deployed HTTPS site and select **Install app** in the top bar. Supported browsers display an installation prompt; other browsers show instructions for adding the app to your home screen or Dock. The installed app uses the Ilyas logo and opens in its own window, in portrait or landscape.
+
+Installation does not automatically prepare offline sales. Launch the installed app, sign in online, select a branch, open a shift and wait for **POS saved for offline reopening during this session**. Prepare it again after a deployment or new session. Existing offline session and cashier restrictions still apply. Login and administration require a connection.
+
+Before rollout, test the production build on the actual cashier devices: install, launch, sign in, prepare POS, reopen offline, record a test sale, reconnect and confirm it syncs once. Also test dismissal of the install prompt and iPhone/iPad home-screen installation. Browser installation prompts cannot be forced and may be unavailable in private browsing.
